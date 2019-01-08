@@ -1,3 +1,5 @@
+require('events').EventEmitter.prototype._maxListeners = 100
+
 const { fork, spawn } = require('child_process')
 const diffy = require('diffy')
 const trim = require('diffy/trim')
@@ -9,73 +11,70 @@ const { assign } = actions
 
 const getPort = require('get-port')
 
-let peerA
+const numPeers = 26
+const peers = []
 
-const peerAStates = {
-  initial: 'starting',
-  states: {
-    'not started': {
-      on: { NEXT: 'starting' }
-    },
-    starting: {
-      onEntry: () => { peerA = startPeer('a') },
-      on: {
-        NEXT: { actions: () => { peerA.send('NEXT') } },
-        'PEER A:COLLABORATION CREATED': 'waiting for b to be ready'
-      }
-    },
-    'waiting for b to be ready': {
-      onEntry: assign({readyA: true}),
-      on: { 'PEER B:COLLABORATION CREATED': 'paused' }
-    },
-    paused: {
-      on: { NEXT: 'editing' }
-    },
-    editing: {
-      onEntry: () => { peerA.send('NEXT') },
-      on: { 'PEER A:DONE': 'done' }
-    },
-    done: {
-      onEntry: assign({editedA: true}),
-      type: 'final'
-    }
-  }
-}
+const peerStates = {}
 
-let peerB
-
-const peerBStates = {
-  initial: 'not started',
-  states: {
-    'not started': {
-      on: {
-        NEXT: {
-          target: 'starting',
-          cond: ctx => ctx.readyA
-        }
-      }
-    },
-    starting: {
-      onEntry: () => { peerB = startPeer('b') },
-      on: {
-        NEXT: { actions: () => { peerB.send('NEXT') } },
-        'PEER B:COLLABORATION CREATED': 'waiting for a to finish'
+const aCharCode = 'a'.charCodeAt(0) // 97
+for (let i = 0; i < numPeers; i++) {
+  const peerLabel = String.fromCharCode(aCharCode + i)
+  const peerLabelUpper = peerLabel.toUpperCase()
+  const prevPeerLabel = String.fromCharCode(aCharCode + i - 1)
+  const prevPeerLabelUpper = prevPeerLabel.toUpperCase()
+  const lastPeerLabel = String.fromCharCode(aCharCode + numPeers - 1)
+  const lastPeerLabelUpper = lastPeerLabel.toUpperCase()
+  const waitingState = (i !== numPeers - 1)
+    ? 'waiting for last'
+    : 'last peer ready'
+  peerStates[`peer${peerLabelUpper}`] = {
+    initial: 'not started',
+    states: {
+      'not started': {
+        on: {
+          NEXT: {
+            target: 'starting',
+            cond: ctx => !i || ctx[`ready${prevPeerLabelUpper}`]
+          }
+        }  
       },
-    },
-    'waiting for a to finish': {
-      on: {
-        NEXT: {
-          target: 'editing',
-          cond: ctx => ctx.editedA
+      starting: {
+        onEntry: () => { peers[i] = startPeer(peerLabel) },
+        on: {
+          NEXT: { actions: () => { peers[i].send('NEXT') } },
+          [`PEER ${peerLabelUpper}:COLLABORATION CREATED`]: waitingState
         }
+      },
+      'waiting for last': {
+        onEntry: assign({[`ready${peerLabelUpper}`]: true}),
+        on: {
+          [`PEER ${lastPeerLabelUpper}:COLLABORATION CREATED`]: 'paused'
+        }
+      },
+      'last peer ready': {
+        onEntry: assign({[`ready${peerLabelUpper}`]: true}),
+        on: {
+          '': 'paused'
+        }
+      },
+      paused: {
+        on: {
+          NEXT: {
+            target: 'editing',
+            cond: ctx => !i || ctx[`edited${prevPeerLabelUpper}`]
+          }
+        }
+      },
+      editing: {
+        onEntry: () => { peers[i].send('NEXT') },
+        on: {
+          [`PEER ${peerLabelUpper}:DONE`]: 'done'
+        }
+      },
+      done: {
+        onEntry: assign({[`edited${peerLabelUpper}`]: true}),
+        type: 'final'
       }
-    },
-    editing: {
-      onEntry: () => { peerB.send('NEXT') },
-      on: { 'PEER B:DONE': 'done' }
-    },
-    done: {
-      type: 'final'
     }
   }
 }
@@ -83,10 +82,7 @@ const peerBStates = {
 const machine = Machine({
   id: 'top',
   initial: 'initial',
-  context: {
-    readyA: false,
-    editedA: false
-  },
+  context: {},
   states: {
     initial: {
       on: {
@@ -109,10 +105,7 @@ const machine = Machine({
     'peers': {
       id: 'peers',
       type: 'parallel',
-      states: {
-        'peer a': peerAStates,
-        'peer b': peerBStates
-      }
+      states: peerStates
     },
     done: {
       type: 'final'
@@ -125,28 +118,29 @@ const machine = Machine({
 
 let state = ''
 const log = []
-const peerStates = {
-  a: { step: '', crdtValue: '' },
-  b: { step: '', crdtValue: '' }
+const uiPeerStates = {}
+for (let i = 0; i < numPeers; i++) {
+  const peerLabel = String.fromCharCode(aCharCode + i)
+  uiPeerStates[peerLabel] = { step: '', crdtValue: '' }
 }
 
 const d = diffy({fullscreen: true})
 
 d.render(
-  () => trim(`
-    State: ${state.slice(0, d.width - 8)}
+  () => {
+    let text = `State: ${state.slice(0, d.width - 8)}\n\n`
 
-    Peer A:
-      Step: ${peerStates['a'].step}
-      CRDT Value: ${peerStates['a'].crdtValue}
+    for (let i = 0; i < numPeers; i++) {
+      const peerLabel = String.fromCharCode(aCharCode + i)
+      const peerLabelUpper = peerLabel.toUpperCase()
+      text += `  ${peerLabelUpper}: ` +
+        `Step: ${uiPeerStates[peerLabel].step.slice(0, 22).padEnd(22)}  ` +
+        `Value: ${uiPeerStates[peerLabel].crdtValue}\n`
+    }
 
-    Peer B:
-      Step: ${peerStates['b'].step}
-      CRDT Value: ${peerStates['b'].crdtValue}
-
-    Logs:
-    ${log.slice(-(d.height - 15)).join('\n')}
-  `)
+    text += `\nLogs:\n` + log.slice(-(d.height - 5 - numPeers)).join('\n')
+    return text
+  }
 )
 
 const input = diffyInput({showCursor: false})
@@ -193,14 +187,14 @@ function startPeer (peerLabel) {
 
   child.on('message', message => {
     if (message.stateMachine) {
-      peerStates[peerLabel].step = message.stateMachine
+      uiPeerStates[peerLabel].step = message.stateMachine
       service.send(
         `PEER ${peerLabelUpper}:` +
         `${message.stateMachine.toUpperCase()}`
       )
     }
     if (message.crdtValue) {
-      peerStates[peerLabel].crdtValue = message.crdtValue
+      uiPeerStates[peerLabel].crdtValue = message.crdtValue
     }
     d.render()
   })

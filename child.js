@@ -6,6 +6,8 @@ const IPFSRepo = require('ipfs-repo')
 const { MemoryDatastore } = require('interface-datastore')
 const delay = require('delay')
 
+require('events').EventEmitter.prototype._maxListeners = 100
+
 let app
 let collaboration
 
@@ -75,19 +77,8 @@ const peerMachine = Machine({
       invoke: {
         id: 'typeSomeStuff',
         src: async () => {
-          if (process.env['PEER_LABEL'] === 'a') {
-            collaboration.shared.push('a')
-            await delay(1000)
-            collaboration.shared.push('b')
-            await delay(1000)
-            collaboration.shared.push('c')
-          } else if (process.env['PEER_LABEL'] === 'b') {
-            collaboration.shared.push('d')
-            await delay(1000)
-            collaboration.shared.push('e')
-            await delay(1000)
-            collaboration.shared.push('f')
-          }
+          collaboration.shared.push(process.env['PEER_LABEL'])
+          await delay(1000)
         },
         onDone: 'done',
         onError: 'failed'

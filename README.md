@@ -1,29 +1,26 @@
-# peer-base-xstate-playground
-peer-base + xstate + diffy
+# peer-sketch-many
 
-An experiment to try using [XState](https://xstate.js.org/docs/) to control a
-[peer-base](https://github.com/peer-base/peer-base) simulation ... with
-a simple terminal-based UI built with [diffy](https://github.com/mafintosh/diffy).
+Scenario with 26 peers in a rga collaboration.
 
 # Usage
 
 ```
-npm start
+npm start 2> /dev/null
 ```
 
 # Demo
 
-![Demo](https://gateway.ipfs.io/ipfs/QmexLJsg5NSvhNDpcNXCAY3XgAJjEv35qY2BjCPAHTLaqM/xstate-2.gif)
+![Demo](https://gateway.ipfs.io/ipfs/QmZ3Reny3pV9FvESSVa5Bh97aemFmoUMgWQYYpvkEWYRAZ/peer-base-26-peers.gif)
 
 The mini-screencast above shows a simulation with the following steps:
 
 1. starts a [libp2p peer-star rendezvous server](https://github.com/libp2p/js-libp2p-websocket-star-rendezvous) on an unused port
-2. starts two subprocesses, "Peer A" and "Peer B", each of which creates a peer-base collaboration (using a replicatable grow array,
+2. starts 26 subprocesses, "Peer A" to "Peer Z", each of which creates a peer-base collaboration (using a replicatable grow array,
    as used in [PeerPad](https://peerpad.net/) 
-3. "Peer A" types "abc"
-4. "Peer B" types "def"
-
-Because "Peer A" and "Peer B" are connected via the rendezvous server, they sync.
+3. "Peer A" types "a"
+4. "Peer B" types "b" 
+5. and so on...
+6. "Peer Z" types "z"
 
 # License
 
