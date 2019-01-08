@@ -1,10 +1,10 @@
 {
-  "name": "peer-base-xstate-playground",
+  "name": "peer-sketch-many",
   "version": "1.0.0",
-  "description": "",
+  "description": "Let's try peer-base with lots of peers",
   "main": "index.js",
   "scripts": {
-    "start": "node -r esm xstate-peer-base-multiprocess-parent",
+    "start": "node parent",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -14,7 +14,6 @@
     "chalk": "^2.4.1",
     "delay": "^4.1.0",
     "diffy": "^2.1.0",
-    "esm": "^3.0.84",
     "get-port": "^4.1.0",
     "libp2p-websocket-star-rendezvous": "^0.3.0",
     "peer-base": "^0.11.1",

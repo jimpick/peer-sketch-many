@@ -1,14 +1,13 @@
-import { fork, spawn } from 'child_process'
+const { fork, spawn } = require('child_process')
+const diffy = require('diffy')
+const trim = require('diffy/trim')
+const diffyInput = require('diffy/input')
 
-import diffy from 'diffy'
-import trim from 'diffy/trim'
-import diffyInput from 'diffy/input'
-
-import { Machine, actions } from 'xstate'
-import { interpret } from 'xstate/lib/interpreter'
+const { Machine, actions } = require('xstate')
+const { interpret } = require('xstate/lib/interpreter')
 const { assign } = actions
 
-import getPort from 'get-port'
+const getPort = require('get-port')
 
 let peerA
 
@@ -187,7 +186,7 @@ async function startRendezvous () {
 
 function startPeer (peerLabel) {
   const peerLabelUpper = peerLabel.toUpperCase()
-  const child = fork(`${__dirname}/xstate-peer-base-multiprocess-child.js`, {
+  const child = fork(`${__dirname}/child.js`, {
     stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
     env: { ...process.env, PEER_LABEL: peerLabel }
   })

@@ -1,10 +1,10 @@
-import { Machine } from 'xstate'
-import { interpret } from 'xstate/lib/interpreter'
+const { Machine } = require('xstate')
+const { interpret } = require('xstate/lib/interpreter')
 
-import PeerBase from 'peer-base'
-import IPFSRepo from 'ipfs-repo'
-import { MemoryDatastore } from 'interface-datastore'
-import delay from 'delay'
+const PeerBase = require('peer-base')
+const IPFSRepo = require('ipfs-repo')
+const { MemoryDatastore } = require('interface-datastore')
+const delay = require('delay')
 
 let app
 let collaboration
